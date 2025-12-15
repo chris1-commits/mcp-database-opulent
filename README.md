@@ -9,6 +9,8 @@ python -m venv .venv
 pip install -e .[test]
 copy .env.example .env         # fill in real secrets
 uvicorn gateway.main:create_app --host 0.0.0.0 --port 8000
+# Check env completeness (non-zero exit if required keys missing)
+python -m gateway.healthcheck
 ```
 Required env vars (set in `.env`):
 - Postgres: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
@@ -38,7 +40,8 @@ terraform apply \
   -var image=ghcr.io/chris1-commits/mcp-database-opulent:latest \
   -var pg_host=... -var pg_user=... -var pg_password=... -var pg_database=... \
   -var cloudtalk_secret=... -var notion_secret=... -var n8n_url=... \
-  -var elevenlabs_api_key=... -var elevenlabs_voice_id=... -var elevenlabs_model_id=...
+  -var elevenlabs_api_key=... -var elevenlabs_voice_id=... -var elevenlabs_model_id=... \
+  -var openai_api_key=...
 ```
 
 ### AWS (ECS Fargate)
@@ -49,7 +52,7 @@ terraform apply \
   -var region=ap-southeast-2 \
   -var container_image=ghcr.io/chris1-commits/mcp-database-opulent:latest \
   -var cluster_name=mcp-gateway \
-  -var environment=\"{PGHOST=...,PGUSER=...,PGPASSWORD=...,PGDATABASE=...,CLOUDTALK_WEBHOOK_SECRET=...,NOTION_WEBHOOK_SECRET=...,N8N_WEBHOOK_URL=...,ELEVENLABS_API_KEY=...,ELEVENLABS_VOICE_ID=...,ELEVENLABS_MODEL_ID=...}\"
+  -var environment=\"{PGHOST=...,PGUSER=...,PGPASSWORD=...,PGDATABASE=...,CLOUDTALK_WEBHOOK_SECRET=...,NOTION_WEBHOOK_SECRET=...,N8N_WEBHOOK_URL=...,ELEVENLABS_API_KEY=...,ELEVENLABS_VOICE_ID=...,ELEVENLABS_MODEL_ID=...,OPENAI_API_KEY=...}\"
 ```
 
 ## Notes

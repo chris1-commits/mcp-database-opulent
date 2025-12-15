@@ -175,6 +175,44 @@ DATABASE_URL = (
     f"@{os.getenv('PGHOST', 'localhost')}:{os.getenv('PGPORT', '5432')}/{os.getenv('PGDATABASE', '')}"
 )
 
+REQUIRED_ENV_KEYS = [
+    "PGHOST",
+    "PGPORT",
+    "PGUSER",
+    "PGPASSWORD",
+    "PGDATABASE",
+    "CLOUDTALK_WEBHOOK_SECRET",
+    "NOTION_WEBHOOK_SECRET",
+    "N8N_WEBHOOK_URL",
+    "REPOSITORY_IMPL",
+]
+
+OPTIONAL_ENV_KEYS = [
+    "ELEVENLABS_API_KEY",
+    "ELEVENLABS_VOICE_ID",
+    "ELEVENLABS_MODEL_ID",
+    "OPENAI_API_KEY",
+]
+
+
+def missing_env(keys: list[str]) -> list[str]:
+    """Return env keys that are unset or empty (used for health checks)."""
+
+    return [k for k in keys if not os.getenv(k)]
+
+
+def env_health() -> Dict[str, Any]:
+    """Summarize missing required/optional env keys for self-checks."""
+
+    missing_required = missing_env(REQUIRED_ENV_KEYS)
+    missing_optional = missing_env(OPTIONAL_ENV_KEYS)
+    status = "ok" if not missing_required else "degraded"
+    return {
+        "status": status,
+        "missing_required": missing_required,
+        "missing_optional": missing_optional,
+    }
+
 
 def _get_session_factory():
     """Lazily create an async SQLAlchemy session factory.
@@ -481,6 +519,12 @@ if FastAPI is not None:  # pragma: no cover - exercised in real runtime only
             raise RuntimeError("FastAPI is not available in this environment") from _fastapi_import_error
 
         app = FastAPI(title="Opulent MCP Gateway", version="0.1.0")
+        @app.get("/health/env", tags=["health"])
+        async def env_health_endpoint():
+            """Report missing required/optional env keys (no secret values)."""
+
+            return env_health()
+
         app.include_router(lead_router, prefix="/api/lead", tags=["lead"])
         app.include_router(cloudtalk_router, prefix="/api/cloudtalk", tags=["cloudtalk"])
         app.include_router(notion_router, prefix="/api/notion", tags=["notion"])
