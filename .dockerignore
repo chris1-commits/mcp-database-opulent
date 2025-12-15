@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.git
+.gitignore
+.dockerignore
+infra/
+ngrok-v3-stable-windows-amd64/
+opulent_mcp_gateway.egg-info/
+.mypy_cache/
+.pytest_cache/
