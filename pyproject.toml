@@ -1,0 +1,29 @@
+[project]
+name = "opulent-mcp-gateway"
+version = "0.1.0"
+description = "MCP Gateway with JSON-RPC, CloudTalk & Notion webhooks"
+authors = [{ name = "Opulent Horizons" }]
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "asyncpg>=0.29.0",
+    "httpx>=0.25.0",
+    "python-jsonrpc-server>=0.4.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.scripts]
+mcp-gateway = "gateway.main:create_app"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

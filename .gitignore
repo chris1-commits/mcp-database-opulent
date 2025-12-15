@@ -1,0 +1,8 @@
+
+.env
+__pycache__/
+*.pyc
+.venv/
+
+opulent_mcp_gateway.egg-info/
+ngrok-v3-stable-windows-amd64/
