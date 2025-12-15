@@ -11,6 +11,8 @@ copy .env.example .env         # fill in real secrets
 uvicorn gateway.main:create_app --host 0.0.0.0 --port 8000
 # Check env completeness (non-zero exit if required keys missing)
 python -m gateway.healthcheck
+# Verify reachability / OpenAPI (defaults to localhost:8000)
+python -m gateway.openapi_check
 ```
 Required env vars (set in `.env`):
 - Postgres: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`

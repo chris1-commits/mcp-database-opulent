@@ -525,6 +525,12 @@ if FastAPI is not None:  # pragma: no cover - exercised in real runtime only
 
             return env_health()
 
+        @app.get("/health/ping", tags=["health"])
+        async def ping():
+            """Lightweight liveness check."""
+
+            return {"status": "ok"}
+
         app.include_router(lead_router, prefix="/api/lead", tags=["lead"])
         app.include_router(cloudtalk_router, prefix="/api/cloudtalk", tags=["cloudtalk"])
         app.include_router(notion_router, prefix="/api/notion", tags=["notion"])
