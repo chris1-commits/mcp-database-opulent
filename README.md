@@ -14,6 +14,7 @@ Required env vars (set in `.env`):
 - Postgres: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
 - Webhooks: `CLOUDTALK_WEBHOOK_SECRET`, `NOTION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`
 - Optional (for ElevenLabs TTS): `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`
+- Optional (for LLM features): `OPENAI_API_KEY`
 
 ## Docker
 ```bash

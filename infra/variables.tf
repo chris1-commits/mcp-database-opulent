@@ -12,3 +12,4 @@ variable "n8n_url" {}
 variable "elevenlabs_api_key" { default = "" }
 variable "elevenlabs_voice_id" { default = "" }
 variable "elevenlabs_model_id" { default = "" }
+variable "openai_api_key" { default = "" }

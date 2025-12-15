@@ -48,6 +48,7 @@ resource "azurerm_container_group" "mcp_gateway" {
       ELEVENLABS_API_KEY       = var.elevenlabs_api_key
       ELEVENLABS_VOICE_ID      = var.elevenlabs_voice_id
       ELEVENLABS_MODEL_ID      = var.elevenlabs_model_id
+      OPENAI_API_KEY           = var.openai_api_key
     }
   }
 
