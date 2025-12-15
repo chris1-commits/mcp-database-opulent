@@ -10,6 +10,10 @@ pip install -e .[test]
 copy .env.example .env         # fill in real secrets
 uvicorn gateway.main:create_app --host 0.0.0.0 --port 8000
 ```
+Required env vars (set in `.env`):
+- Postgres: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
+- Webhooks: `CLOUDTALK_WEBHOOK_SECRET`, `NOTION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`
+- Optional (for ElevenLabs TTS): `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`
 
 ## Docker
 ```bash
@@ -32,7 +36,8 @@ terraform apply \
   -var container_name=mcp-gateway \
   -var image=ghcr.io/chris1-commits/mcp-database-opulent:latest \
   -var pg_host=... -var pg_user=... -var pg_password=... -var pg_database=... \
-  -var cloudtalk_secret=... -var notion_secret=... -var n8n_url=...
+  -var cloudtalk_secret=... -var notion_secret=... -var n8n_url=... \
+  -var elevenlabs_api_key=... -var elevenlabs_voice_id=... -var elevenlabs_model_id=...
 ```
 
 ### AWS (ECS Fargate)
@@ -43,7 +48,7 @@ terraform apply \
   -var region=ap-southeast-2 \
   -var container_image=ghcr.io/chris1-commits/mcp-database-opulent:latest \
   -var cluster_name=mcp-gateway \
-  -var environment=\"{PGHOST=...,PGUSER=...,PGPASSWORD=...,PGDATABASE=...,CLOUDTALK_WEBHOOK_SECRET=...,NOTION_WEBHOOK_SECRET=...,N8N_WEBHOOK_URL=...}\"
+  -var environment=\"{PGHOST=...,PGUSER=...,PGPASSWORD=...,PGDATABASE=...,CLOUDTALK_WEBHOOK_SECRET=...,NOTION_WEBHOOK_SECRET=...,N8N_WEBHOOK_URL=...,ELEVENLABS_API_KEY=...,ELEVENLABS_VOICE_ID=...,ELEVENLABS_MODEL_ID=...}\"
 ```
 
 ## Notes

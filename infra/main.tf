@@ -45,6 +45,9 @@ resource "azurerm_container_group" "mcp_gateway" {
       CLOUDTALK_WEBHOOK_SECRET = var.cloudtalk_secret
       NOTION_WEBHOOK_SECRET    = var.notion_secret
       N8N_WEBHOOK_URL          = var.n8n_url
+      ELEVENLABS_API_KEY       = var.elevenlabs_api_key
+      ELEVENLABS_VOICE_ID      = var.elevenlabs_voice_id
+      ELEVENLABS_MODEL_ID      = var.elevenlabs_model_id
     }
   }
 
