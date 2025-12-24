@@ -359,6 +359,10 @@ async def publish_event(event_type: str, payload: Any) -> None:
 
 if FastAPI is not None:  # pragma: no cover - exercised in real runtime only
     lead_router = APIRouter()
+    try:
+        from .mcp_router import router as mcp_router
+    except Exception:
+        mcp_router = None
 
     def repo_dep() -> Repository:
         # Simple repository factory; in production you would switch on env to use Catalyst, etc.
@@ -534,6 +538,8 @@ if FastAPI is not None:  # pragma: no cover - exercised in real runtime only
         app.include_router(lead_router, prefix="/api/lead", tags=["lead"])
         app.include_router(cloudtalk_router, prefix="/api/cloudtalk", tags=["cloudtalk"])
         app.include_router(notion_router, prefix="/api/notion", tags=["notion"])
+        if mcp_router is not None:
+            app.include_router(mcp_router)
         return app
 
 else:
@@ -543,6 +549,7 @@ else:
         raise RuntimeError(
             "FastAPI is not available in this environment; HTTP app cannot be created"
         )
+    mcp_router = None  # type: ignore
 
 
 # 8. Minimal internal tests (do not hit FastAPI or Postgres)
