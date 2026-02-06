@@ -9,7 +9,7 @@ from __future__ import annotations
 import sys
 from typing import NoReturn
 
-from .main import env_health
+from .services.health import env_health
 
 
 def main() -> NoReturn:

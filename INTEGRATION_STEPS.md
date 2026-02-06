@@ -1,52 +1,81 @@
-## MCP Integration Steps (FastAPI gateway)
+## MCP Integration Steps
 
-1) Copy files
-- Ensure `gateway/mcp_server.py` and `gateway/mcp_router.py` exist under `gateway/`.
+### 1. Install
 
-2) Wire router
-- In `gateway/main.py`, `create_app()` already imports and mounts `mcp_router` when FastAPI is available. Nothing further required after this patch.
-
-3) Configure auth
-- Set `MCP_AUTH_TOKEN` (32+ chars recommended). All `/api/rpc` calls require `Authorization: Bearer <token>`.
-
-4) Run locally
 ```bash
-python -m pip install -e .[test]
-uvicorn gateway.main:create_app --host 0.0.0.0 --port 8000
-curl http://localhost:8000/health/ping
-curl http://localhost:8000/api/rpc/health
-curl -X POST http://localhost:8000/api/rpc -H "Authorization: Bearer $MCP_AUTH_TOKEN" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"ping","id":1}'
+pip install -e .[test]
 ```
 
-5) Deploy
-- Rebuild/push your GHCR image after the new files are present.
-- Redeploy via your existing Terraform (Azure ACI or AWS ECS). Ensure `MCP_AUTH_TOKEN` is provided as an environment variable.
+### 2. Configure auth
 
-6) Codex config (example)
-```toml
-[mcp_servers.opulent_horizons_gateway]
-type = "http"
-url = "https://your-host/api/rpc"
-timeout = 30
-retry_count = 3
+Set `MCP_AUTH_TOKEN` in your `.env` file (32+ chars recommended).
 
-[mcp_servers.opulent_horizons_gateway.headers]
-Authorization = "Bearer YOUR_MCP_AUTH_TOKEN"
-Content-Type = "application/json"
+### 3. Run locally
+
+```bash
+# stdio transport (for Claude Desktop / Claude Code)
+mcp run gateway/server.py
+
+# Streamable HTTP transport (for remote access, port 8000)
+python -m gateway.server
+
+# Development inspector (browser-based tool testing)
+mcp dev gateway/server.py
 ```
 
-## Available MCP methods
-- `ping` -> `{"status": "pong"}`
-- `tools/list` -> returns 6 tools
-- `tools/call` with `name` in:
-  - `health_ping`
-  - `health_env`
-  - `lead_ingest` (in-memory simulated ingest)
-  - `cloudtalk_webhook_validator`
-  - `notion_webhook_validator`
-  - `n8n_workflow_trigger`
+### 4. Test tools
 
-## Required environment
-- Existing: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `CLOUDTALK_WEBHOOK_SECRET`, `NOTION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`, `REPOSITORY_IMPL`
-- New: `MCP_AUTH_TOKEN`
-- Optional: `ELEVENLABS_*`, `OPENAI_API_KEY`
+```bash
+# Run the test suite
+pytest gateway/tests/ -v
+
+# Check environment health
+python -m gateway.healthcheck
+```
+
+### 5. Deploy
+
+Rebuild/push your GHCR image, then redeploy via Terraform (Azure ACI or AWS ECS). Ensure all required env vars are provided:
+- `MCP_AUTH_TOKEN`
+- `CLOUDTALK_WEBHOOK_SECRET`
+- `NOTION_WEBHOOK_SECRET`
+- `N8N_WEBHOOK_URL`
+
+### 6. Client configuration
+
+#### Claude Desktop / Claude Code (stdio)
+```json
+{
+  "mcpServers": {
+    "opulent-gateway": {
+      "command": "python",
+      "args": ["-m", "gateway.server"],
+      "env": {
+        "MCP_AUTH_TOKEN": "your-token-here"
+      }
+    }
+  }
+}
+```
+
+#### Remote HTTP client
+Connect to `http://your-host:8000/mcp` using any MCP client that supports Streamable HTTP transport.
+
+### Available MCP tools
+
+| Tool | Description |
+|------|-------------|
+| `health_ping` | Ping → `{"status": "pong"}` |
+| `health_env` | Report missing env vars |
+| `lead_ingest` | Validate and ingest a lead (source_system, source_lead_id, channel, first_name, last_name, email?, phone?) |
+| `cloudtalk_webhook_validator` | Validate HMAC-SHA256 signature (body, signature) |
+| `notion_webhook_validator` | Validate HMAC-SHA256 signature (body, signature) |
+| `n8n_workflow_trigger` | POST payload to N8N_WEBHOOK_URL |
+
+### Required environment
+
+- `MCP_AUTH_TOKEN` — Bearer token for authentication
+- `CLOUDTALK_WEBHOOK_SECRET` — HMAC secret for CloudTalk webhooks
+- `NOTION_WEBHOOK_SECRET` — HMAC secret for Notion webhooks
+- `N8N_WEBHOOK_URL` — N8N webhook endpoint URL
+- Optional: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `REPOSITORY_IMPL`

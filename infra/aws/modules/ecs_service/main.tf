@@ -88,7 +88,7 @@ resource "aws_lb_target_group" "gateway" {
   vpc_id   = data.aws_vpc.selected.id
   target_type = "ip"
   health_check {
-    path                = "/rpc"
+    path                = "/health"
     matcher             = "200-399"
     interval            = 30
     timeout             = 5

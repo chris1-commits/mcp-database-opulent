@@ -1,36 +1,38 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- gateway/ holds the FastAPI application. gateway/main.py exposes create_app(); keep new routers or services inside this package. Tests belong in gateway/tests/.
+- gateway/ holds the MCP server application. gateway/server.py defines the FastMCP instance with all tool registrations. Business logic lives in gateway/services/. Domain models in gateway/models.py. Tests in gateway/tests/.
 - .github/ stores CI workflows, infra/ contains Terraform for Azure plus AWS modules (infra/aws/modules). Docker artifacts (Dockerfile, docker-compose.yml) are at the repo root.
-- Architecture docs and schema notes live alongside the Final Schema bundle in OneDrive.
 
 ## Build, Test, and Development Commands
-`
+```
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+source .venv/bin/activate
 pip install -e .[test]
-python gateway/main.py            # run internal async tests
-uvicorn gateway.main:create_app --host 0.0.0.0 --port 8000
-ngrok http 8000                   # temp public URL for webhooks
-docker compose build && docker compose up
-cd infra && terraform init && terraform plan
-`
+pytest gateway/tests/ -v                          # run tests
+mcp run gateway/server.py                         # stdio transport (local)
+python -m gateway.server                          # Streamable HTTP (remote)
+mcp dev gateway/server.py                         # dev inspector
+python -m gateway.healthcheck                     # env health check
+docker compose build && docker compose up         # Docker
+cd infra && terraform init && terraform plan      # Terraform
+```
 
 ## Coding Style & Naming Conventions
-- Python 3.9+, 4-space indentation, Black-style formatting. Snake_case for functions/variables; UpperCamelCase for Pydantic models.
+- Python 3.10+, 4-space indentation, Black-style formatting. Snake_case for functions/variables; UpperCamelCase for Pydantic models.
 - Keep configuration in environment variables (.env.example shows required keys). Never commit secrets.
-- Organize routers/services under gateway/ and prefer explicit imports to avoid circular dependencies.
+- Organize services under gateway/services/ and prefer explicit imports to avoid circular dependencies.
 
 ## Testing Guidelines
-- Legacy async tests run via python gateway/main.py. Add new suites with pytest under gateway/tests/test_<feature>.py.
-- Aim for >80% coverage on JSON-RPC handlers, OHID logic, and webhook verification. Use pytest/pytest-asyncio for async scenarios.
+- All tests use pytest/pytest-asyncio under gateway/tests/test_<feature>.py.
+- Aim for >80% coverage on MCP tool handlers, OHID logic, and webhook verification.
+- Use `asyncio_mode = "auto"` (configured in pyproject.toml).
 
 ## Commit & Pull Request Guidelines
-- Use conventional, descriptive commits (eat: add notion webhook router, ix: enforce cloudtalk signature). Keep commits scoped and rebased before PRs.
+- Use conventional, descriptive commits (feat: add notion webhook router, fix: enforce cloudtalk signature). Keep commits scoped and rebased before PRs.
 - PRs should include: summary, linked issue/Notion task, verification steps (commands run), and screenshots/logs when touching webhook flows or infrastructure.
 
 ## Security & Configuration Tips
 - Store secrets in Azure Key Vault or AWS Secrets Manager; .env is for local use only.
-- When exposing webhooks, rely on ngrok Pro or your cloud ingress and note the URL swap in Notion so automations stay aligned.
-- Always run 	erraform plan before pply, and allow the GitHub workflow to build/push GHCR images used in deployments.
+- The MCP_AUTH_TOKEN env var is used for bearer token authentication. Never hard-code tokens.
+- Always run `terraform plan` before `apply`, and allow the GitHub workflow to build/push GHCR images used in deployments.
