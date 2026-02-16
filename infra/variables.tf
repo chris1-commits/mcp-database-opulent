@@ -6,7 +6,9 @@ variable "pg_host" {}
 variable "pg_user" {}
 variable "pg_password" {}
 variable "pg_database" {}
-variable "cloudtalk_secret" {}
+variable "twilio_auth_token" {}
+variable "whatsapp_app_secret" {}
+variable "whatsapp_verify_token" { default = "" }
 variable "notion_secret" {}
 variable "n8n_url" {}
 variable "elevenlabs_api_key" { default = "" }

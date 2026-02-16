@@ -1,6 +1,6 @@
 # Opulent MCP Gateway
 
-FastAPI-based MCP gateway with CloudTalk and Notion webhooks. Builds to GHCR via GitHub Actions and can deploy to Azure Container Instances or AWS ECS.
+FastAPI-based MCP gateway with WhatsApp, Twilio and Notion webhooks. Builds to GHCR via GitHub Actions and can deploy to Azure Container Instances or AWS ECS.
 
 ## Quick start (local)
 ```bash
@@ -16,7 +16,7 @@ python -m gateway.openapi_check
 ```
 Required env vars (set in `.env`):
 - Postgres: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
-- Webhooks: `CLOUDTALK_WEBHOOK_SECRET`, `NOTION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`
+- Webhooks: `TWILIO_AUTH_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `NOTION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`
 - Optional (for ElevenLabs TTS): `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`
 - Optional (for LLM features): `OPENAI_API_KEY`
 
@@ -41,7 +41,8 @@ terraform apply \
   -var container_name=mcp-gateway \
   -var image=ghcr.io/chris1-commits/mcp-database-opulent:latest \
   -var pg_host=... -var pg_user=... -var pg_password=... -var pg_database=... \
-  -var cloudtalk_secret=... -var notion_secret=... -var n8n_url=... \
+  -var twilio_auth_token=... -var whatsapp_app_secret=... -var whatsapp_verify_token=... \
+  -var notion_secret=... -var n8n_url=... \
   -var elevenlabs_api_key=... -var elevenlabs_voice_id=... -var elevenlabs_model_id=... \
   -var openai_api_key=...
 ```
@@ -54,7 +55,7 @@ terraform apply \
   -var region=ap-southeast-2 \
   -var container_image=ghcr.io/chris1-commits/mcp-database-opulent:latest \
   -var cluster_name=mcp-gateway \
-  -var environment=\"{PGHOST=...,PGUSER=...,PGPASSWORD=...,PGDATABASE=...,CLOUDTALK_WEBHOOK_SECRET=...,NOTION_WEBHOOK_SECRET=...,N8N_WEBHOOK_URL=...,ELEVENLABS_API_KEY=...,ELEVENLABS_VOICE_ID=...,ELEVENLABS_MODEL_ID=...,OPENAI_API_KEY=...}\"
+  -var environment=\"{PGHOST=...,PGUSER=...,PGPASSWORD=...,PGDATABASE=...,TWILIO_AUTH_TOKEN=...,WHATSAPP_APP_SECRET=...,WHATSAPP_VERIFY_TOKEN=...,NOTION_WEBHOOK_SECRET=...,N8N_WEBHOOK_URL=...,ELEVENLABS_API_KEY=...,ELEVENLABS_VOICE_ID=...,ELEVENLABS_MODEL_ID=...,OPENAI_API_KEY=...}\"
 ```
 
 ## Notes
