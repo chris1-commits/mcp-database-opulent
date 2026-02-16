@@ -10,7 +10,9 @@ variable "pg_host" {}
 variable "pg_user" {}
 variable "pg_password" {}
 variable "pg_database" {}
-variable "cloudtalk_secret" {}
+variable "twilio_auth_token" {}
+variable "whatsapp_app_secret" {}
+variable "whatsapp_verify_token" { default = "" }
 variable "notion_secret" {}
 variable "n8n_url" {}
 
@@ -42,7 +44,9 @@ resource "azurerm_container_group" "mcp_gateway" {
       PGUSER                   = var.pg_user
       PGPASSWORD               = var.pg_password
       PGDATABASE               = var.pg_database
-      CLOUDTALK_WEBHOOK_SECRET = var.cloudtalk_secret
+      TWILIO_AUTH_TOKEN         = var.twilio_auth_token
+      WHATSAPP_APP_SECRET      = var.whatsapp_app_secret
+      WHATSAPP_VERIFY_TOKEN    = var.whatsapp_verify_token
       NOTION_WEBHOOK_SECRET    = var.notion_secret
       N8N_WEBHOOK_URL          = var.n8n_url
       ELEVENLABS_API_KEY       = var.elevenlabs_api_key

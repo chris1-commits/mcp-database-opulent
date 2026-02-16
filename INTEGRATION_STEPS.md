@@ -42,11 +42,12 @@ Content-Type = "application/json"
   - `health_ping`
   - `health_env`
   - `lead_ingest` (in-memory simulated ingest)
-  - `cloudtalk_webhook_validator`
+  - `twilio_webhook_validator`
+  - `whatsapp_webhook_validator`
   - `notion_webhook_validator`
   - `n8n_workflow_trigger`
 
 ## Required environment
-- Existing: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `CLOUDTALK_WEBHOOK_SECRET`, `NOTION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`, `REPOSITORY_IMPL`
+- Existing: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `TWILIO_AUTH_TOKEN`, `WHATSAPP_APP_SECRET`, `NOTION_WEBHOOK_SECRET`, `N8N_WEBHOOK_URL`, `REPOSITORY_IMPL`
 - New: `MCP_AUTH_TOKEN`
 - Optional: `ELEVENLABS_*`, `OPENAI_API_KEY`

@@ -1,7 +1,7 @@
 [project]
 name = "opulent-mcp-gateway"
 version = "0.1.0"
-description = "MCP Gateway with JSON-RPC, CloudTalk & Notion webhooks"
+description = "MCP Gateway with JSON-RPC, WhatsApp, Twilio & Notion webhooks"
 authors = [{ name = "Opulent Horizons" }]
 requires-python = ">=3.9"
 dependencies = [

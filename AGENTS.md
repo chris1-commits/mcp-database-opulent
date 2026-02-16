@@ -27,7 +27,7 @@ cd infra && terraform init && terraform plan
 - Aim for >80% coverage on JSON-RPC handlers, OHID logic, and webhook verification. Use pytest/pytest-asyncio for async scenarios.
 
 ## Commit & Pull Request Guidelines
-- Use conventional, descriptive commits (eat: add notion webhook router, ix: enforce cloudtalk signature). Keep commits scoped and rebased before PRs.
+- Use conventional, descriptive commits (feat: add notion webhook router, fix: enforce twilio signature). Keep commits scoped and rebased before merging.
 - PRs should include: summary, linked issue/Notion task, verification steps (commands run), and screenshots/logs when touching webhook flows or infrastructure.
 
 ## Security & Configuration Tips

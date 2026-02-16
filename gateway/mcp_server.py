@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
+import json
 import os
 import uuid
 from typing import Any, Dict, List
-
 import httpx
 
 from .main import (
-    CloudtalkWebhookPayload,
     Consent,
     LeadIngestRequest,
     Person,
+    TwilioWebhookPayload,
     _FakeRepo,
     env_health,
     resolve_ohid,
@@ -67,13 +68,26 @@ def list_tools() -> List[Dict[str, Any]]:
             },
         },
         {
-            "name": "cloudtalk_webhook_validator",
-            "description": "Validate a CloudTalk webhook signature against CLOUDTALK_WEBHOOK_SECRET",
+            "name": "twilio_webhook_validator",
+            "description": "Validate a Twilio webhook signature against TWILIO_AUTH_TOKEN",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "Full request URL"},
+                    "params": {"type": "object", "description": "POST form parameters as key-value pairs"},
+                    "signature": {"type": "string", "description": "X-Twilio-Signature header value"},
+                },
+                "required": ["url", "params", "signature"],
+            },
+        },
+        {
+            "name": "whatsapp_webhook_validator",
+            "description": "Validate a WhatsApp Cloud API webhook signature against WHATSAPP_APP_SECRET",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "body": {"type": "string", "description": "raw JSON body"},
-                    "signature": {"type": "string", "description": "hex HMAC SHA256 signature"},
+                    "signature": {"type": "string", "description": "X-Hub-Signature-256 header value"},
                 },
                 "required": ["body", "signature"],
             },
@@ -136,13 +150,29 @@ async def handle_lead_ingest(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"ohid": ohid, "ingest_id": ingest_id}
 
 
-def _verify_cloudtalk_signature(body: bytes, signature: str) -> bool:
-    secret = os.getenv("CLOUDTALK_WEBHOOK_SECRET", "")
-    if not secret:
+def _verify_twilio_signature(url: str, params: Dict[str, str], signature: str) -> bool:
+    """Validate a Twilio webhook signature (HMAC SHA1, base64-encoded)."""
+    secret = os.getenv("TWILIO_AUTH_TOKEN", "")
+    if not secret or not signature:
         return False
-    mac = hmac.new(secret.encode("utf-8"), msg=body, digestmod=hashlib.sha256)
-    expected = mac.hexdigest()
+    data = url
+    for key in sorted(params.keys()):
+        data += key + params[key]
+    mac = hmac.new(secret.encode("utf-8"), msg=data.encode("utf-8"), digestmod=hashlib.sha1)
+    expected = base64.b64encode(mac.digest()).decode("utf-8")
     return hmac.compare_digest(expected, signature)
+
+
+def _verify_whatsapp_signature(body: bytes, signature_header: str) -> bool:
+    """Validate a WhatsApp Cloud API webhook signature (X-Hub-Signature-256)."""
+    secret = os.getenv("WHATSAPP_APP_SECRET", "")
+    if not secret or not signature_header:
+        return False
+    signature = signature_header
+    if signature.startswith("sha256="):
+        signature = signature.split("=", 1)[1]
+    digest = hmac.new(secret.encode("utf-8"), msg=body, digestmod=hashlib.sha256).hexdigest()
+    return hmac.compare_digest(digest, signature)
 
 
 def _verify_notion_signature(body: bytes, signature_header: str) -> bool:
@@ -156,16 +186,32 @@ def _verify_notion_signature(body: bytes, signature_header: str) -> bool:
     return hmac.compare_digest(digest, signature)
 
 
-def handle_cloudtalk_validator(args: Dict[str, Any]) -> Dict[str, Any]:
-    body = args["body"].encode("utf-8")
+def handle_twilio_validator(args: Dict[str, Any]) -> Dict[str, Any]:
+    url = args["url"]
+    params = args["params"]
     signature = args["signature"]
-    ok = _verify_cloudtalk_signature(body, signature)
+    ok = _verify_twilio_signature(url, params, signature)
     parsed: Dict[str, Any] = {}
     try:
-        parsed = CloudtalkWebhookPayload.parse_raw(body).model_dump()
+        parsed = TwilioWebhookPayload(**params).model_dump()
     except Exception:
         parsed = {"parse": "failed"}
     return {"valid": ok, "parsed": parsed}
+
+
+def handle_whatsapp_validator(args: Dict[str, Any]) -> Dict[str, Any]:
+    body = args["body"].encode("utf-8")
+    signature = args["signature"]
+    ok = _verify_whatsapp_signature(body, signature)
+    messages: list = []
+    try:
+        payload = json.loads(body)
+        for entry in payload.get("entry", []):
+            for change in entry.get("changes", []):
+                messages.extend(change.get("value", {}).get("messages", []))
+    except Exception:
+        pass
+    return {"valid": ok, "messages": messages}
 
 
 def handle_notion_validator(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -191,8 +237,10 @@ async def call_tool(name: str, args: Dict[str, Any]) -> Any:
         return handle_env_health()
     if name == "lead_ingest":
         return await handle_lead_ingest(args)
-    if name == "cloudtalk_webhook_validator":
-        return handle_cloudtalk_validator(args)
+    if name == "twilio_webhook_validator":
+        return handle_twilio_validator(args)
+    if name == "whatsapp_webhook_validator":
+        return handle_whatsapp_validator(args)
     if name == "notion_webhook_validator":
         return handle_notion_validator(args)
     if name == "n8n_workflow_trigger":
