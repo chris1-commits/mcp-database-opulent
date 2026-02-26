@@ -1,0 +1,27 @@
+# docker-compose.voltagent.yml
+#
+# Full-stack compose: Python MCP Gateway + VoltAgent AI Agent
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.voltagent.yml up --build
+#
+# This extends the base docker-compose.yml with the VoltAgent service.
+
+services:
+  voltagent:
+    build:
+      context: ./voltagent
+      dockerfile: Dockerfile
+    ports:
+      - "3141:3141"
+    environment:
+      # Connect to the gateway container by service name
+      MCP_GATEWAY_URL: http://mcp-gateway:8000/api/rpc
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      VOLTAGENT_PORT: "3141"
+      LIBSQL_URL: "file:./voltagent-memory.db"
+    depends_on:
+      - mcp-gateway
+    restart: unless-stopped

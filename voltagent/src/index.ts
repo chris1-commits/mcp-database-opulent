@@ -27,6 +27,12 @@ import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 
 import { allGatewayTools } from "./tools.js";
+import {
+  inputGuardrails,
+  piiOutputGuardrails,
+  supervisorOutputGuardrails,
+} from "./guardrails.js";
+import { subAgentHooks, supervisorHooks } from "./hooks.js";
 
 // ── Logger ──────────────────────────────────────────────────────
 
@@ -99,6 +105,8 @@ Always start by pinging the gateway to confirm connectivity.`,
   model,
   memory,
   tools: allGatewayTools,
+  hooks: subAgentHooks,
+  inputGuardrails,
 });
 
 /**
@@ -122,6 +130,9 @@ Valid channel values: WEB_FORM, META_LEAD_AD, INBOUND_CALL, OUTBOUND_CALL, WHATS
   model,
   memory,
   tools: allGatewayTools,
+  hooks: subAgentHooks,
+  inputGuardrails,
+  outputGuardrails: piiOutputGuardrails,
 });
 
 /**
@@ -145,6 +156,9 @@ When validating, always explain whether the signature is valid and what the pars
   model,
   memory,
   tools: allGatewayTools,
+  hooks: subAgentHooks,
+  inputGuardrails,
+  outputGuardrails: piiOutputGuardrails,
 });
 
 /**
@@ -173,6 +187,9 @@ Provide concise summaries of results from sub-agents.`,
   memory,
   subAgents: [opsAgent, leadAgent, securityAgent],
   tools: allGatewayTools,
+  hooks: supervisorHooks,
+  inputGuardrails,
+  outputGuardrails: supervisorOutputGuardrails,
 });
 
 // ── VoltAgent bootstrap ─────────────────────────────────────────

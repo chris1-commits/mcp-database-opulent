@@ -8,28 +8,36 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "build": "tsc",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "workflow:ops": "tsx src/workflows/ops-check.ts",
+    "workflow:lead": "tsx src/workflows/lead-ingest.ts",
+    "workflow:security": "tsx src/workflows/webhook-validate.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "latest",
+    "@ai-sdk/openai": "latest",
     "@voltagent/core": "latest",
-    "@voltagent/server-hono": "latest",
+    "@voltagent/docs-mcp": "latest",
     "@voltagent/libsql": "latest",
     "@voltagent/logger": "latest",
-    "@voltagent/voice": "latest",
     "@voltagent/sdk": "latest",
-    "@voltagent/docs-mcp": "latest",
+    "@voltagent/server-hono": "latest",
     "@voltagent/supabase": "latest",
+    "@voltagent/voice": "latest",
     "@voltagent/xsai": "latest",
     "ai": "^6.0.0",
-    "@ai-sdk/openai": "latest",
-    "@ai-sdk/anthropic": "latest",
-    "zod": "^3.23.0",
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@voltagent/cli": "latest",
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@voltagent/cli": "latest",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^4.0.18"
   }
 }
