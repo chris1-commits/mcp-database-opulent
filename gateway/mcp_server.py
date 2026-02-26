@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import uuid
+from datetime import datetime
 from typing import Any, Dict, List
 import httpx
 
@@ -140,7 +141,7 @@ async def handle_lead_ingest(args: Dict[str, Any]) -> Dict[str, Any]:
         lead_details=None,
         consent=Consent(marketing=True),
         raw_payload={},
-        timestamp=None,  # type: ignore[arg-type]
+        timestamp=datetime.utcnow(),
         meta={},
     )
     repo = _FakeRepo()

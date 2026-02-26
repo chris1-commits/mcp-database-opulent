@@ -374,10 +374,9 @@ async def publish_event(event_type: str, payload: Any) -> None:
 
 if FastAPI is not None:  # pragma: no cover - exercised in real runtime only
     lead_router = APIRouter()
-    try:
-        from .mcp_router import router as mcp_router
-    except Exception:
-        mcp_router = None
+    # Note: mcp_router is imported lazily inside create_app() to avoid
+    # circular import (mcp_server imports from main, mcp_router imports mcp_server).
+    mcp_router = None
 
     def repo_dep() -> Repository:
         # Simple repository factory; in production you would switch on env to use Catalyst, etc.
@@ -640,8 +639,13 @@ if FastAPI is not None:  # pragma: no cover - exercised in real runtime only
         app.include_router(twilio_router, prefix="/api/twilio", tags=["twilio"])
         app.include_router(whatsapp_router, prefix="/api/whatsapp", tags=["whatsapp"])
         app.include_router(notion_router, prefix="/api/notion", tags=["notion"])
-        if mcp_router is not None:
-            app.include_router(mcp_router)
+        # Lazy import to break circular dependency:
+        # main -> mcp_router -> mcp_server -> main
+        try:
+            from .mcp_router import router as _mcp_router
+            app.include_router(_mcp_router)
+        except Exception:
+            pass
         return app
 
 else:
