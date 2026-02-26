@@ -26,13 +26,16 @@ import { createPinoLogger } from "@voltagent/logger";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
 
-import { allGatewayTools } from "./tools.js";
+import { allGatewayTools, leadIngestTool } from "./tools.js";
 import {
   inputGuardrails,
   piiOutputGuardrails,
   supervisorOutputGuardrails,
 } from "./guardrails.js";
 import { subAgentHooks, supervisorHooks } from "./hooks.js";
+import { RetryQueue } from "./retry-queue.js";
+import { MetricsStore } from "./metrics.js";
+import { configureWebhookRoutes } from "./webhook-listener.js";
 
 // ── Logger ──────────────────────────────────────────────────────
 
@@ -82,6 +85,33 @@ const model = process.env.OPENAI_API_KEY
 // ── Port ────────────────────────────────────────────────────────
 
 const port = parseInt(process.env.VOLTAGENT_PORT ?? "3141", 10);
+
+// ── Retry Queue ─────────────────────────────────────────────────
+// Automatically retries failed lead ingests with exponential backoff.
+
+const retryQueue = new RetryQueue({
+  maxRetries: 5,
+  baseDelayMs: 1000,
+  maxDelayMs: 300_000,
+  onRetry: (item, attempt) => {
+    logger.info(`[retry-queue] Retrying ${item.operation} (attempt ${attempt}/${item.maxRetries})`);
+  },
+  onSuccess: (item) => {
+    logger.info(`[retry-queue] ${item.operation} succeeded after ${item.attempt} retries`);
+  },
+  onDeadLetter: (item) => {
+    logger.error(`[retry-queue] ${item.operation} moved to dead letter after ${item.attempt} attempts: ${item.lastError}`);
+  },
+});
+
+retryQueue.registerExecutor("lead_ingest", async (payload) => {
+  return await leadIngestTool.execute!(payload as any, {} as any);
+});
+
+// ── Metrics Store ───────────────────────────────────────────────
+// In-memory metric aggregation for health, leads, security, webhooks.
+
+const metrics = new MetricsStore();
 
 // ── Agents ──────────────────────────────────────────────────────
 
@@ -201,9 +231,20 @@ new VoltAgent({
     leads: leadAgent,
     security: securityAgent,
   },
-  server: honoServer({ port }),
+  server: honoServer({
+    port,
+    configureApp: (app) => {
+      configureWebhookRoutes(app, { retryQueue, metrics });
+    },
+  }),
 });
 
 logger.info(
   `Opulent MCP Agent started on port ${port} — gateway: ${mcpGatewayUrl} — VoltOps: https://console.voltagent.dev`
+);
+logger.info(
+  `Webhook endpoints: POST /webhooks/twilio, /webhooks/whatsapp, /webhooks/notion`
+);
+logger.info(
+  `Monitoring: GET /metrics, /metrics/trends, /webhooks/status, /retry-queue`
 );

@@ -32,6 +32,32 @@ import {
   notionWebhookValidatorTool,
   n8nWorkflowTriggerTool,
 } from "../tools.js";
+import { MetricsStore } from "../metrics.js";
+import { RetryQueue } from "../retry-queue.js";
+
+// ── Shared instances ──────────────────────────────────────────────
+// These are the same classes used in the main server (index.ts).
+// In standalone runner mode, we create our own instances.
+
+const metrics = new MetricsStore();
+const retryQueue = new RetryQueue({
+  maxRetries: 5,
+  baseDelayMs: 1000,
+  maxDelayMs: 300_000,
+  onRetry: (item, attempt) => {
+    console.log(`  [retry] ${item.operation} attempt ${attempt}/${item.maxRetries}`);
+  },
+  onSuccess: (item) => {
+    console.log(`  [retry] ${item.operation} succeeded after ${item.attempt} retries`);
+  },
+  onDeadLetter: (item) => {
+    console.log(`  [dead-letter] ${item.operation} permanently failed: ${item.lastError}`);
+  },
+});
+
+retryQueue.registerExecutor("lead_ingest", async (payload) => {
+  return await leadIngestTool.execute!(payload as any, {} as any);
+});
 
 // ── Configuration ─────────────────────────────────────────────────
 
@@ -115,9 +141,25 @@ async function healthTask() {
       }
     }
 
+    metrics.recordHealth({
+      timestamp: new Date().toISOString(),
+      gatewayAlive: true,
+      latencyMs: latency,
+      envStatus,
+      missingRequired: missing,
+    });
+
     updateState("health", true, `UP (${latency}ms, env: ${envStatus})`);
     console.log(`  UP (${latency}ms) — env: ${envStatus}`);
   } catch (err) {
+    metrics.recordHealth({
+      timestamp: new Date().toISOString(),
+      gatewayAlive: false,
+      latencyMs: 0,
+      envStatus: "unreachable",
+      missingRequired: [],
+    });
+
     updateState("health", false, "DOWN");
     console.log(`  DOWN: ${err instanceof Error ? err.message : String(err)}`);
 
@@ -145,6 +187,7 @@ async function leadBatchTask() {
 
   // Simulate batch: ingest a sample lead and verify pipeline works
   const batchId = `batch-${Date.now()}`;
+  const leadStart = Date.now();
   try {
     const result = (await leadIngestTool.execute!(
       {
@@ -157,6 +200,15 @@ async function leadBatchTask() {
       },
       {} as any
     )) as Record<string, unknown>;
+
+    metrics.recordLead({
+      timestamp: new Date().toISOString(),
+      source: "WEB",
+      channel: "WEB_FORM",
+      ohid: (result?.ohid as string) ?? null,
+      success: true,
+      durationMs: Date.now() - leadStart,
+    });
 
     updateState("leads", true, `OK (OHID: ${result?.ohid})`);
     console.log(`  Lead pipeline OK — OHID: ${result?.ohid}`);
@@ -179,8 +231,33 @@ async function leadBatchTask() {
       // n8n not configured
     }
   } catch (err) {
-    updateState("leads", false, `FAIL: ${err instanceof Error ? err.message : String(err)}`);
-    console.log(`  Lead pipeline FAIL: ${err instanceof Error ? err.message : String(err)}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    metrics.recordLead({
+      timestamp: new Date().toISOString(),
+      source: "WEB",
+      channel: "WEB_FORM",
+      ohid: null,
+      success: false,
+      durationMs: Date.now() - leadStart,
+      error: msg,
+    });
+
+    // Queue for retry
+    retryQueue.enqueue(
+      "lead_ingest",
+      {
+        source_system: "WEB",
+        source_lead_id: `${batchId}-heartbeat`,
+        channel: "WEB_FORM",
+        first_name: "System",
+        last_name: "Heartbeat",
+        email: "heartbeat@system.internal",
+      },
+      msg
+    );
+
+    updateState("leads", false, `FAIL (queued for retry): ${msg}`);
+    console.log(`  Lead pipeline FAIL (queued for retry): ${msg}`);
   }
 }
 
@@ -230,13 +307,28 @@ async function securityAuditTask() {
 
   let allReachable = true;
   for (const v of validators) {
+    const secStart = Date.now();
     try {
       await v.fn();
       auditResults[v.name] = true;
+      metrics.recordSecurity({
+        timestamp: new Date().toISOString(),
+        provider: v.name as "twilio" | "whatsapp" | "notion",
+        reachable: true,
+        signatureValid: null,
+        durationMs: Date.now() - secStart,
+      });
       console.log(`  ${v.name}: reachable`);
     } catch {
       auditResults[v.name] = false;
       allReachable = false;
+      metrics.recordSecurity({
+        timestamp: new Date().toISOString(),
+        provider: v.name as "twilio" | "whatsapp" | "notion",
+        reachable: false,
+        signatureValid: null,
+        durationMs: Date.now() - secStart,
+      });
       console.log(`  ${v.name}: unreachable`);
     }
   }
@@ -269,15 +361,30 @@ async function securityAuditTask() {
 // ── Status display ────────────────────────────────────────────────
 
 function printStatus() {
-  console.log("\n" + "═".repeat(60));
+  console.log("\n" + "═".repeat(70));
   console.log("  Task".padEnd(20) + "Runs".padEnd(8) + "OK".padEnd(6) + "Fail".padEnd(8) + "Status");
-  console.log("  " + "─".repeat(56));
+  console.log("  " + "─".repeat(66));
   for (const s of Object.values(state)) {
     console.log(
       `  ${s.name.padEnd(18)}${String(s.runCount).padEnd(8)}${String(s.successCount).padEnd(6)}${String(s.failCount).padEnd(8)}${s.lastStatus}`
     );
   }
-  console.log("═".repeat(60));
+
+  // Metrics trend summary
+  const trend = metrics.getTrend(60);
+  const qStats = retryQueue.getStats();
+  console.log("  " + "─".repeat(66));
+  console.log(`  Metrics (${trend.period}):`);
+  console.log(`    Uptime: ${trend.uptimePercent}% | Avg latency: ${trend.avgLatencyMs}ms | Max: ${trend.maxLatencyMs}ms`);
+  console.log(`    Leads: ${trend.leadsIngested} ingested, ${trend.leadFailures} failed`);
+  console.log(`    Security audits: ${trend.securityAudits} | Webhooks: ${trend.webhooksProcessed}`);
+  if (trend.downtimeIncidents.length > 0) {
+    console.log(`    Downtime incidents: ${trend.downtimeIncidents.length}`);
+  }
+  if (qStats.pending > 0 || qStats.deadLetter > 0) {
+    console.log(`    Retry queue: ${qStats.pending} pending, ${qStats.deadLetter} dead-letter`);
+  }
+  console.log("═".repeat(70));
 }
 
 // ── Main ──────────────────────────────────────────────────────────

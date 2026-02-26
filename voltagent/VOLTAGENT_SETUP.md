@@ -114,7 +114,7 @@ MCP Gateway and are used when the agent invokes webhook validation tools:
 
 ## Testing
 
-### Unit tests (14 tests, all passing)
+### Unit tests (40 tests, all passing)
 
 ```bash
 cd voltagent
@@ -135,6 +135,9 @@ npm run test:coverage
 - Error handling (MCP error codes)
 - Tool argument forwarding (required + optional fields)
 - Tool count and uniqueness validation
+- Retry queue (exponential backoff, max retries, dead-letter, executor registration)
+- Metrics store (recording, time-window queries, trend analysis, downtime detection, trimming)
+- Webhook listener (route registration, pipeline processing, retry queue integration, metrics recording)
 
 ### Sample workflow scripts
 
@@ -217,6 +220,102 @@ All agents emit structured logs through lifecycle hooks:
 | `onHandoff` (supervisor) | Task delegation to sub-agent |
 | `onHandoffComplete` (supervisor) | Sub-agent result received |
 | `onStepFinish` (supervisor) | Step-by-step execution progress |
+
+---
+
+## Webhook Listener (Live Inbound Processing)
+
+The VoltAgent server includes live webhook endpoints that automatically process
+inbound webhooks through the full pipeline:
+
+### Endpoints (on port 3141)
+
+| Endpoint | Method | What it does |
+|----------|--------|-------------|
+| `/webhooks/twilio` | POST | Receives Twilio SMS/voice webhooks: validate signature → extract contact → ingest lead → notify n8n |
+| `/webhooks/whatsapp` | POST | Receives WhatsApp Cloud API webhooks: validate signature → extract contact → ingest lead → notify n8n |
+| `/webhooks/notion` | POST | Receives Notion webhooks: validate signature → forward event to n8n |
+| `/webhooks/status` | GET | Pipeline status: active endpoints, retry queue stats, recent webhook count |
+| `/metrics` | GET | Full metrics dashboard: health, leads, security, webhooks with 15m/1h/24h trends |
+| `/metrics/trends` | GET | Trend report with configurable window: `?minutes=60` |
+| `/retry-queue` | GET | View pending retries and dead-letter items |
+| `/retry-queue/:id/retry` | POST | Manually retry a dead-letter item |
+
+### Retry Queue
+
+Failed lead ingestions are automatically queued for retry with exponential backoff:
+- Base delay: 1 second, doubling each attempt (1s → 2s → 4s → 8s → 16s)
+- Max 5 retries before moving to dead-letter queue
+- Dead-letter items can be manually retried via the API
+- Callbacks log retry attempts, successes, and permanent failures
+
+### Metrics Store
+
+In-memory metric aggregation with trend analysis:
+- **Health metrics**: gateway alive/down, latency, env status
+- **Lead metrics**: source, channel, OHID, success/failure, duration
+- **Security metrics**: provider reachability, signature validity
+- **Webhook metrics**: provider, pipeline result, status codes
+- **Trend reports**: uptime %, avg/max latency, downtime incidents, lead counts
+- Auto-trims at 10,000 entries per metric type
+
+---
+
+## Overnight Automation Guide
+
+### Quick start (unattended overnight)
+
+```bash
+# Option 1: Docker (recommended — auto-restarts, runs full stack)
+docker compose -f docker-compose.yml -f docker-compose.voltagent.yml up -d
+
+# Option 2: Standalone runner (against an already-running gateway)
+cd voltagent && npm run workflow:runner
+```
+
+### What runs overnight
+
+The automation runner executes three scheduled tasks:
+
+| Task | Default interval | What it does |
+|------|-----------------|-------------|
+| Health check | Every 60s | Pings gateway, checks env vars, measures latency. Alerts via n8n on degradation/recovery. |
+| Lead batch | Every 300s | Verifies lead_ingest pipeline is functional. Failed ingests are queued for retry. |
+| Security audit | Every 600s | Tests all 3 webhook validators (Twilio, WhatsApp, Notion) for reachability. |
+
+### What you'll see in the morning
+
+1. **Metrics dashboard** at `GET :3141/metrics` — 15m/1h/24h trend reports
+2. **Uptime percentage** and **downtime incidents** with exact timestamps
+3. **Latency trends** — average and max response times
+4. **Lead pipeline history** — successful ingests and failures
+5. **Retry queue** — any items that failed and were retried/dead-lettered
+6. **n8n notifications** — every alert, health check, and batch result
+
+### Configuring intervals
+
+```bash
+# Via CLI flags
+npm run workflow:runner -- --health-interval 30 --lead-interval 120 --security-interval 300
+
+# Via environment variables
+RUNNER_HEALTH_INTERVAL=30 RUNNER_LEAD_INTERVAL=120 npm run workflow:runner
+```
+
+### Configuring n8n alerts
+
+Set `N8N_WEBHOOK_URL` on the Python gateway to receive alerts. Events sent:
+
+| Event type | Severity | Trigger |
+|-----------|----------|---------|
+| `GatewayDown` | critical | Gateway unreachable |
+| `GatewayRecovered` | recovery | Gateway back up after downtime |
+| `HealthAlert` | warning/info | Missing env vars or high latency (>5s) |
+| `EnvironmentDegraded` | warning | Required env vars missing |
+| `LeadBatchComplete` | info | Batch heartbeat succeeded |
+| `SecurityAudit` | info | Validator reachability results |
+| `WebhookProcessed` | info | Live webhook processed through pipeline |
+| `PipelineComplete` | info | Full pipeline orchestrator finished |
 
 ---
 
@@ -313,11 +412,17 @@ This starts:
 ```
 voltagent/
 ├── src/
-│   ├── index.ts              # Main entry — 4 agents with guardrails + hooks
+│   ├── index.ts              # Main entry — 4 agents + webhook listener + retry queue + metrics
 │   ├── tools.ts              # 7 Zod-typed tools wrapping gateway RPC
 │   ├── guardrails.ts         # Input/output guardrails (PII, injection, schema)
 │   ├── hooks.ts              # Observability hooks (lifecycle, tool, handoff)
-│   ├── tools.test.ts         # 14 unit tests (vitest, mocked gateway)
+│   ├── webhook-listener.ts   # Live webhook endpoints (Twilio, WhatsApp, Notion)
+│   ├── retry-queue.ts        # Exponential backoff retry queue with dead-letter
+│   ├── metrics.ts            # In-memory metric aggregation and trend analysis
+│   ├── tools.test.ts         # Unit tests for tools (14 tests)
+│   ├── retry-queue.test.ts   # Unit tests for retry queue (7 tests)
+│   ├── metrics.test.ts       # Unit tests for metrics store (11 tests)
+│   ├── webhook-listener.test.ts  # Unit tests for webhook handler (8 tests)
 │   └── workflows/
 │       ├── ops-check.ts         # Sample: health + env + n8n trigger
 │       ├── lead-ingest.ts       # Sample: 3 leads with OHID deduplication
