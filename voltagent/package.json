@@ -1,0 +1,35 @@
+{
+  "name": "opulent-mcp-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VoltAgent AI agent with MCP integration for the Opulent MCP Gateway",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@voltagent/core": "latest",
+    "@voltagent/server-hono": "latest",
+    "@voltagent/libsql": "latest",
+    "@voltagent/logger": "latest",
+    "@voltagent/voice": "latest",
+    "@voltagent/sdk": "latest",
+    "@voltagent/docs-mcp": "latest",
+    "@voltagent/supabase": "latest",
+    "@voltagent/xsai": "latest",
+    "ai": "^6.0.0",
+    "@ai-sdk/openai": "latest",
+    "@ai-sdk/anthropic": "latest",
+    "zod": "^3.23.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "@voltagent/cli": "latest",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
