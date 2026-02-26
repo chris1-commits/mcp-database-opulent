@@ -149,7 +149,34 @@ npm run workflow:lead
 npm run workflow:security
 ```
 
-**Note:** Workflow scripts require the Python MCP Gateway to be running.
+### Automation workflows (multi-tool pipelines)
+
+```bash
+# Webhook → Lead pipeline: validate signature → extract contact → ingest → notify n8n
+npm run workflow:webhook-lead
+
+# Health monitor: periodic checks with degradation alerts
+npm run workflow:health-monitor                  # single run
+npm run workflow:health-monitor -- --interval 30 # every 30s (continuous)
+
+# Full pipeline orchestrator: all 7 tools in 4 phases (pre-flight → leads → security → n8n)
+npm run workflow:full-pipeline
+
+# Automation runner: scheduled tasks with configurable intervals
+npm run workflow:runner                                           # default intervals
+npm run workflow:runner -- --health-interval 30 --lead-interval 120  # custom
+```
+
+#### Workflow descriptions
+
+| Workflow | Tools used | What it does |
+|----------|-----------|-------------|
+| `webhook-lead` | twilio/whatsapp validator → lead_ingest → n8n_trigger | End-to-end inbound webhook processing: validates, extracts contact, creates lead, notifies downstream |
+| `health-monitor` | health_ping, health_env, n8n_trigger | Monitors gateway health with latency tracking, alerts on degradation/recovery via n8n |
+| `full-pipeline` | All 7 tools | Chains every tool in a 4-phase pipeline: pre-flight, multi-source lead batch, security audit, n8n summary |
+| `runner` | All 7 tools | Interval-based scheduler running health (60s), lead batch (300s), and security audit (600s) tasks continuously |
+
+**Note:** All workflow scripts require the Python MCP Gateway to be running.
 
 ---
 
@@ -292,9 +319,13 @@ voltagent/
 │   ├── hooks.ts              # Observability hooks (lifecycle, tool, handoff)
 │   ├── tools.test.ts         # 14 unit tests (vitest, mocked gateway)
 │   └── workflows/
-│       ├── ops-check.ts      # Sample: health + env + n8n trigger
-│       ├── lead-ingest.ts    # Sample: 3 leads with OHID deduplication
-│       └── webhook-validate.ts  # Sample: Twilio/WhatsApp/Notion validation
+│       ├── ops-check.ts         # Sample: health + env + n8n trigger
+│       ├── lead-ingest.ts       # Sample: 3 leads with OHID deduplication
+│       ├── webhook-validate.ts  # Sample: Twilio/WhatsApp/Notion validation
+│       ├── webhook-to-lead.ts   # Automation: webhook → validate → ingest → n8n
+│       ├── health-monitor.ts    # Automation: periodic health checks + alerts
+│       ├── full-pipeline.ts     # Automation: all 7 tools in 4-phase pipeline
+│       └── automation-runner.ts # Automation: interval-based task scheduler
 ├── package.json              # All dependencies with test scripts
 ├── tsconfig.json             # Strict TypeScript (ES2022, bundler)
 ├── vitest.config.ts          # Vitest configuration

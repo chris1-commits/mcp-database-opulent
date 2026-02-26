@@ -15,6 +15,10 @@
     "workflow:ops": "tsx src/workflows/ops-check.ts",
     "workflow:lead": "tsx src/workflows/lead-ingest.ts",
     "workflow:security": "tsx src/workflows/webhook-validate.ts",
+    "workflow:webhook-lead": "tsx src/workflows/webhook-to-lead.ts",
+    "workflow:health-monitor": "tsx src/workflows/health-monitor.ts",
+    "workflow:full-pipeline": "tsx src/workflows/full-pipeline.ts",
+    "workflow:runner": "tsx src/workflows/automation-runner.ts",
     "check:elevenlabs": "node -e \"const p=JSON.parse(require('fs').readFileSync('./package-lock.json','utf8')); const deps=Object.keys(p.packages||{}); const bad=deps.filter(d=>d.includes('@elevenlabs/elevenlabs-js')); if(bad.length){console.error('Found @elevenlabs/elevenlabs-js as installed package:',bad); process.exit(1)} else {console.log('OK: no @elevenlabs/elevenlabs-js package installed')}\""
   },
   "overrides": {
